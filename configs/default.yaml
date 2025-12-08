@@ -1,0 +1,44 @@
+# ===========================
+# Default Configuration File
+# Bearing Fault Diagnosis
+# ===========================
+
+# -------- Dataset Settings --------
+data:
+  raw_dir: "data/raw"          # 原始数据存放目录
+  processed_dir: "data/processed"  # 处理后的数据存放目录
+  dataset_name: "CWRU"         # 数据集名称（仅作记录）
+  sample_length: 2048          # 信号切片长度
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  normalize: true              # 是否归一化
+  use_fft: false               # 是否对信号进行 FFT 变换
+
+# -------- Model Settings --------
+model:
+  type: "CNN1D"                # 模型类型，可扩展 Transformer / LSTM
+  input_channels: 1
+  num_classes: 10              # 分类类别数，根据你的数据集调整
+  conv_channels: [16, 32, 64]  # 每层卷积通道数
+  kernel_size: 5
+  dropout: 0.2                 # dropout 比例
+
+# -------- Training Settings --------
+train:
+  epochs: 30
+  batch_size: 64
+  learning_rate: 0.001
+  optimizer: "adam"
+  weight_decay: 0.0001
+  num_workers: 4
+  use_cuda: true
+
+# -------- Logging & Saving --------
+logging:
+  use_tensorboard: true
+  log_dir: "experiments/exp1/logs"
+
+saving:
+  model_dir: "models"
+  save_best_only: true         # 只保存验证集最好的模型
