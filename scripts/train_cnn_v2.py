@@ -1,7 +1,8 @@
-# 这其实是v3版本，但是懒得重命名或者新建文件夹了（v2版本的代码应该在项目根文件里，是.txt格式的）
+# 这其实是v4版本，但是懒得重命名或者新建文件夹了（v2版本的代码应该在项目根文件里，是.txt格式的）
 # v1版本就是项目里的train_cnn.py
 # v2版本是每次训练都随机划分数据集
 # v3版本是固定划分数据集，多次训练取平均
+# v4版本是将v3版本稍作修改，实现保存结果供后续画图
 import os
 import numpy as np
 import torch
@@ -13,7 +14,7 @@ import random
 # =========================
 # 1. 全局参数
 # =========================
-NUM_RUNS = 5          # 多次随机训练次数（先 5 次即可）
+NUM_RUNS = 5
 EPOCHS = 20
 BATCH_SIZE = 64
 LR = 1e-3
@@ -21,10 +22,15 @@ NUM_CLASSES = 4
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-os.makedirs("models", exist_ok=True)
+# 结果保存目录（给 A-2 画图用）
+RESULT_DIR = "results/cnn_multi_run"
+MODEL_DIR = "models"
+
+os.makedirs(RESULT_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
 
 # =========================
-# 2. 固定随机种子（每个 run 不同）
+# 2. 固定随机种子
 # =========================
 def set_seed(seed):
     random.seed(seed)
@@ -44,11 +50,10 @@ class BearingDataset(Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
-        # [B, 1, L]
         return self.X[idx].unsqueeze(0), self.y[idx]
 
 # =========================
-# 4. CNN 模型定义
+# 4. CNN 模型
 # =========================
 class CNN1D(nn.Module):
     def __init__(self, num_classes):
@@ -64,7 +69,7 @@ class CNN1D(nn.Module):
             nn.MaxPool1d(2),
         )
 
-        # ⚠️ 这里的 256 要与你的切片长度一致
+        # ⚠️ 256 需与你的切片长度匹配
         self.classifier = nn.Sequential(
             nn.Linear(32 * 256, 128),
             nn.ReLU(),
@@ -79,10 +84,7 @@ class CNN1D(nn.Module):
 # =========================
 # 5. 单次训练 + 测试
 # =========================
-def train_and_test(run_id,
-                   train_loader,
-                   val_loader,
-                   test_loader):
+def train_and_test(run_id, train_loader, val_loader, test_loader):
 
     print(f"\n===== Run {run_id + 1} =====")
 
@@ -91,7 +93,7 @@ def train_and_test(run_id,
     criterion = nn.CrossEntropyLoss()
 
     best_val_acc = 0.0
-    best_model_path = f"models/cnn_run{run_id + 1}_best.pth"
+    best_model_path = os.path.join(MODEL_DIR, f"cnn_run{run_id + 1}_best.pth")
 
     # --------- 训练 ---------
     for epoch in range(EPOCHS):
@@ -187,10 +189,21 @@ def main():
 
     all_test_acc = np.array(all_test_acc)
 
+    # =========================
+    # ⭐ 保存结果（给 A-2 画图用）
+    # =========================
+    np.save(os.path.join(RESULT_DIR, "test_accs.npy"), all_test_acc)
+
+    with open(os.path.join(RESULT_DIR, "test_accs.txt"), "w") as f:
+        for i, acc in enumerate(all_test_acc):
+            f.write(f"Run {i+1}: {acc:.4f}\n")
+        f.write(f"\nMean: {all_test_acc.mean():.4f}\n")
+        f.write(f"Std: {all_test_acc.std():.4f}\n")
+
     print("\n===== Final Statistics =====")
     print("Test Accuracies:", all_test_acc)
     print(f"Mean Test Acc: {all_test_acc.mean():.4f}")
-    print(f"Std  Test Acc: {all_test_acc.std():.4f}")
+    print(f"Std Test Acc: {all_test_acc.std():.4f}")
 
 # =========================
 # 7. 入口
