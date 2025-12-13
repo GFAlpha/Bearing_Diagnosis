@@ -1,23 +1,40 @@
+# 这其实是v3版本，但是懒得重命名或者新建文件夹了（v2版本的代码应该在项目根文件里，是.txt格式的）
+# v1版本就是项目里的train_cnn.py
+# v2版本是每次训练都随机划分数据集
+# v3版本是固定划分数据集，多次训练取平均
 import os
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import accuracy_score
+import random
 
-# =====================
-# 参数区
-# =====================
+# =========================
+# 1. 全局参数
+# =========================
+NUM_RUNS = 5          # 多次随机训练次数（先 5 次即可）
+EPOCHS = 20
 BATCH_SIZE = 64
-EPOCHS = 30
 LR = 1e-3
 NUM_CLASSES = 4
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# =====================
-# 数据集类
-# =====================
+os.makedirs("models", exist_ok=True)
+
+# =========================
+# 2. 固定随机种子（每个 run 不同）
+# =========================
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+# =========================
+# 3. 数据集定义
+# =========================
 class BearingDataset(Dataset):
     def __init__(self, X, y):
         self.X = torch.tensor(X, dtype=torch.float32)
@@ -27,12 +44,12 @@ class BearingDataset(Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
+        # [B, 1, L]
         return self.X[idx].unsqueeze(0), self.y[idx]
 
-
-# =====================
-# CNN 模型
-# =====================
+# =========================
+# 4. CNN 模型定义
+# =========================
 class CNN1D(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -47,6 +64,7 @@ class CNN1D(nn.Module):
             nn.MaxPool1d(2),
         )
 
+        # ⚠️ 这里的 256 要与你的切片长度一致
         self.classifier = nn.Sequential(
             nn.Linear(32 * 256, 128),
             nn.ReLU(),
@@ -58,38 +76,24 @@ class CNN1D(nn.Module):
         x = x.view(x.size(0), -1)
         return self.classifier(x)
 
+# =========================
+# 5. 单次训练 + 测试
+# =========================
+def train_and_test(run_id,
+                   train_loader,
+                   val_loader,
+                   test_loader):
 
-# =====================
-# 主流程
-# =====================
-def main():
-    print(f"使用设备: {DEVICE}")
-
-    X_train = np.load("data/splits/X_train.npy")
-    y_train = np.load("data/splits/y_train.npy")
-
-    X_val = np.load("data/splits/X_val.npy")
-    y_val = np.load("data/splits/y_val.npy")
-
-    X_test = np.load("data/splits/X_test.npy")
-    y_test = np.load("data/splits/y_test.npy")
-
-
-    train_loader = DataLoader(BearingDataset(X_train, y_train),
-                              batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(BearingDataset(X_val, y_val),
-                            batch_size=BATCH_SIZE)
-    test_loader = DataLoader(BearingDataset(X_test, y_test),
-                             batch_size=BATCH_SIZE)
+    print(f"\n===== Run {run_id + 1} =====")
 
     model = CNN1D(NUM_CLASSES).to(DEVICE)
-    criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    criterion = nn.CrossEntropyLoss()
 
     best_val_acc = 0.0
-    os.makedirs("models", exist_ok=True)
+    best_model_path = f"models/cnn_run{run_id + 1}_best.pth"
 
-    # ========= 训练阶段 =========
+    # --------- 训练 ---------
     for epoch in range(EPOCHS):
         model.train()
         for x, y in train_loader:
@@ -100,10 +104,9 @@ def main():
             loss.backward()
             optimizer.step()
 
-        # ========= 验证阶段 =========
+        # --------- 验证 ---------
         model.eval()
         val_preds, val_labels = [], []
-
         with torch.no_grad():
             for x, y in val_loader:
                 x, y = x.to(DEVICE), y.to(DEVICE)
@@ -113,23 +116,17 @@ def main():
 
         val_acc = accuracy_score(val_labels, val_preds)
 
-        print(f"Epoch [{epoch+1}/{EPOCHS}] Val Acc: {val_acc:.4f}")
-
-        # 保存最优模型
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), "models/cnn1d_best.pth")
-            print("  🔥 保存新的最优模型")
+            torch.save(model.state_dict(), best_model_path)
 
-    print(f"\n训练完成，最佳验证准确率: {best_val_acc:.4f}")
+        print(f"Epoch [{epoch+1:02d}/{EPOCHS}] | Val Acc: {val_acc:.4f}")
 
-    # ========= 测试阶段（只做一次） =========
-    print("\n开始测试集评估...")
-    model.load_state_dict(torch.load("models/cnn1d_best.pth"))
+    # --------- 测试 ---------
+    model.load_state_dict(torch.load(best_model_path))
     model.eval()
 
     test_preds, test_labels = [], []
-
     with torch.no_grad():
         for x, y in test_loader:
             x, y = x.to(DEVICE), y.to(DEVICE)
@@ -138,8 +135,65 @@ def main():
             test_labels.extend(y.cpu().numpy())
 
     test_acc = accuracy_score(test_labels, test_preds)
-    print(f"✅ 测试集准确率: {test_acc:.4f}")
+    print(f"Test Acc (Run {run_id + 1}): {test_acc:.4f}")
 
+    return test_acc
 
+# =========================
+# 6. 主函数
+# =========================
+def main():
+
+    # --------- 加载固定数据 ---------
+    X_train = np.load("data/splits/X_train.npy")
+    y_train = np.load("data/splits/y_train.npy")
+
+    X_val = np.load("data/splits/X_val.npy")
+    y_val = np.load("data/splits/y_val.npy")
+
+    X_test = np.load("data/splits/X_test.npy")
+    y_test = np.load("data/splits/y_test.npy")
+
+    train_loader = DataLoader(
+        BearingDataset(X_train, y_train),
+        batch_size=BATCH_SIZE,
+        shuffle=True
+    )
+
+    val_loader = DataLoader(
+        BearingDataset(X_val, y_val),
+        batch_size=BATCH_SIZE,
+        shuffle=False
+    )
+
+    test_loader = DataLoader(
+        BearingDataset(X_test, y_test),
+        batch_size=BATCH_SIZE,
+        shuffle=False
+    )
+
+    all_test_acc = []
+
+    # --------- 多次随机训练 ---------
+    for run in range(NUM_RUNS):
+        set_seed(1000 + run)
+        acc = train_and_test(
+            run,
+            train_loader,
+            val_loader,
+            test_loader
+        )
+        all_test_acc.append(acc)
+
+    all_test_acc = np.array(all_test_acc)
+
+    print("\n===== Final Statistics =====")
+    print("Test Accuracies:", all_test_acc)
+    print(f"Mean Test Acc: {all_test_acc.mean():.4f}")
+    print(f"Std  Test Acc: {all_test_acc.std():.4f}")
+
+# =========================
+# 7. 入口
+# =========================
 if __name__ == "__main__":
     main()
