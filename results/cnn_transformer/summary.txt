@@ -1,0 +1,5 @@
+CNN + Transformer Results
+Mean Acc: 0.9968
+Std Acc : 0.0024
+Avg Train Time: 27.92s
+Avg Infer Time: 0.0479s
