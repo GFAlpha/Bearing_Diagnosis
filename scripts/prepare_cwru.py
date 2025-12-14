@@ -1,95 +1,109 @@
 import os
 import numpy as np
-from scipy.io import loadmat
+import scipy.io as sio
 from tqdm import tqdm
 
-# =====================
-# 参数区
-# 原始数据路径和保存路径
-# 滑窗大小和步长
-# =====================
-RAW_DATA_DIR = "data/raw/CWRU_12K_DE"
-SAVE_DIR = "data/processed"
+# ======================
+# Config
+# ======================
+RAW_DIR = "data/raw"
+OUT_DIR = "data/processed"
 
 WINDOW_SIZE = 1024
 STEP_SIZE = 1024
 
 LABEL_MAP = {
+    "Normal": 0,
     "Ball": 1,
     "Inner Race": 2,
     "Outer Race": 3,
 }
 
-NORMAL_LABEL = 0
+os.makedirs(OUT_DIR, exist_ok=True)
 
-# =====================
-# 工具函数
-# =====================
-def extract_de_signal(mat_path):
+# ======================
+# Utils
+# ======================
+def find_signal_from_mat(mat_dict, min_len=2048):
     """
-    从 CWRU 的 mat 文件中提取 Drive End 信号
+    从 mat 文件中安全地找到一条一维振动信号
     """
-    mat = loadmat(mat_path)
-    for key in mat.keys():
-        if "DE_time" in key:
-            return mat[key].squeeze()
-    raise ValueError(f"DE signal not found in {mat_path}")
+    for k, v in mat_dict.items():
+        if k.startswith("__"):
+            continue
+        if isinstance(v, np.ndarray):
+            v = np.squeeze(v)
+            if v.ndim == 1 and v.size >= min_len:
+                return v.astype(np.float32)
+    return None
 
 
 def slice_signal(signal, window_size, step_size):
-    """
-    滑窗切片
-    """
-    slices = []
-    for start in range(0, len(signal) - window_size, step_size):
-        slices.append(signal[start:start + window_size])
-    return slices
+    segments = []
+    for start in range(0, len(signal) - window_size + 1, step_size):
+        segments.append(signal[start:start + window_size])
+    return segments
 
 
-# =====================
-# 主流程
-# =====================
-X, y = [], []
+# ======================
+# Main
+# ======================
+X_all, y_all = [], []
 
-print("=== 开始处理 CWRU 数据集 ===")
+# ---------- Normal ----------
+normal_dir = os.path.join(RAW_DIR, "CWRU_Normal")
+print("[INFO] Loading Normal data...")
 
-for root, dirs, files in os.walk(RAW_DATA_DIR):
-    for file in files:
-        if not file.endswith(".mat"):
-            continue
+for fname in tqdm(os.listdir(normal_dir)):
+    if not fname.endswith(".mat"):
+        continue
+    mat = sio.loadmat(os.path.join(normal_dir, fname))
+    signal = find_signal_from_mat(mat)
+    if signal is None:
+        print(f"[WARN] No valid signal in {fname}")
+        continue
 
-        mat_path = os.path.join(root, file)
+    segments = slice_signal(signal, WINDOW_SIZE, STEP_SIZE)
+    X_all.extend(segments)
+    y_all.extend([LABEL_MAP["Normal"]] * len(segments))
 
-        # 判断类别
-        label = None
-        for k in LABEL_MAP:
-            if k in mat_path:
-                label = LABEL_MAP[k]
-                break
 
-        if label is None:
-            label = NORMAL_LABEL
+# ---------- Fault ----------
+fault_root = os.path.join(RAW_DIR, "CWRU_12K_DE")
 
-        # 读取信号
-        try:
-            signal = extract_de_signal(mat_path)
-        except Exception as e:
-            print(f"跳过文件 {file}: {e}")
-            continue
+for fault_type in ["Ball", "Inner Race", "Outer Race"]:
+    print(f"[INFO] Loading {fault_type} data...")
+    fault_label = LABEL_MAP[fault_type]
+    fault_dir = os.path.join(fault_root, fault_type)
 
-        segments = slice_signal(signal, WINDOW_SIZE, STEP_SIZE)
+    for root, _, files in os.walk(fault_dir):
+        for fname in files:
+            if not fname.endswith(".mat"):
+                continue
+            mat = sio.loadmat(os.path.join(root, fname))
+            signal = find_signal_from_mat(mat)
+            if signal is None:
+                continue
 
-        for seg in segments:
-            X.append(seg)
-            y.append(label)
+            segments = slice_signal(signal, WINDOW_SIZE, STEP_SIZE)
+            X_all.extend(segments)
+            y_all.extend([fault_label] * len(segments))
 
-print(f"切片完成，共 {len(X)} 个样本")
 
-X = np.array(X, dtype=np.float32)
-y = np.array(y, dtype=np.int64)
+# ======================
+# Save
+# ======================
+X_all = np.array(X_all, dtype=np.float32)
+y_all = np.array(y_all, dtype=np.int64)
 
-os.makedirs(SAVE_DIR, exist_ok=True)
-np.save(os.path.join(SAVE_DIR, "X.npy"), X)
-np.save(os.path.join(SAVE_DIR, "y.npy"), y)
+np.save(os.path.join(OUT_DIR, "X.npy"), X_all)
+np.save(os.path.join(OUT_DIR, "y.npy"), y_all)
 
-print("数据已保存至 data/processed/")
+# ======================
+# Summary
+# ======================
+print("\n========== Dataset Summary ==========")
+print(f"Total samples: {len(y_all)}")
+for name, idx in LABEL_MAP.items():
+    print(f"{name:<12}: {(y_all == idx).sum()}")
+print("=====================================")
