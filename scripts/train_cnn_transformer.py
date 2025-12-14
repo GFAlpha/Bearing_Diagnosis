@@ -1,17 +1,21 @@
-# 导入依赖
+# scripts/train_cnn_transformer.py
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.metrics import accuracy_score
 import os
+import time
 
-# CNN + Transformer 模型定义
+# =========================
+# CNN + Transformer Model
+# =========================
 class CNNTransformer(nn.Module):
     def __init__(self, num_classes=4):
         super().__init__()
 
-        # -------- CNN 特征提取 --------
+        # -------- CNN Backbone --------
         self.cnn = nn.Sequential(
             nn.Conv1d(1, 32, kernel_size=7, padding=3),
             nn.BatchNorm1d(32),
@@ -37,9 +41,11 @@ class CNNTransformer(nn.Module):
             dropout=0.1,
             batch_first=True
         )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=2)
+        self.transformer = nn.TransformerEncoder(
+            encoder_layer, num_layers=2
+        )
 
-        # -------- 分类头 --------
+        # -------- Classifier --------
         self.classifier = nn.Sequential(
             nn.Linear(128, 64),
             nn.ReLU(),
@@ -52,10 +58,12 @@ class CNNTransformer(nn.Module):
         x = self.cnn(x)          # [B, C, T']
         x = x.permute(0, 2, 1)   # [B, T', C]
         x = self.transformer(x) # [B, T', C]
-        x = x.mean(dim=1)        # 全局平均池化
+        x = x.mean(dim=1)        # Global Average Pooling
         return self.classifier(x)
 
-# 训练 & 测试函数
+# =========================
+# Train / Eval
+# =========================
 def train_one_epoch(model, loader, optimizer, criterion, device):
     model.train()
     for x, y in loader:
@@ -78,12 +86,23 @@ def evaluate(model, loader, device):
     return accuracy_score(labels, preds)
 
 
-# 主流程（多次随机训练 + 保存结果）
+def inference_time(model, loader, device):
+    model.eval()
+    start = time.time()
+    with torch.no_grad():
+        for x, _ in loader:
+            x = x.to(device)
+            _ = model(x)
+    return time.time() - start
+
+# =========================
+# Main
+# =========================
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
-    # 加载数据
+    # -------- Load data --------
     X_train = np.load("data/splits/X_train.npy")
     y_train = np.load("data/splits/y_train.npy")
     X_val   = np.load("data/splits/X_val.npy")
@@ -91,29 +110,43 @@ def main():
     X_test  = np.load("data/splits/X_test.npy")
     y_test  = np.load("data/splits/y_test.npy")
 
-    # 转 Tensor
     def make_loader(X, y, shuffle):
         X = torch.tensor(X, dtype=torch.float32).unsqueeze(1)
         y = torch.tensor(y, dtype=torch.long)
-        return DataLoader(TensorDataset(X, y), batch_size=64, shuffle=shuffle)
+        return DataLoader(
+            TensorDataset(X, y),
+            batch_size=64,
+            shuffle=shuffle
+        )
 
     train_loader = make_loader(X_train, y_train, True)
     val_loader   = make_loader(X_val, y_val, False)
     test_loader  = make_loader(X_test, y_test, False)
 
+    # -------- Logs --------
+    NUM_RUNS = 5
+    EPOCHS = 20
+
     test_accs = []
+    train_times = []
+    infer_times = []
 
-    for run in range(5):
-        print(f"\n=== Run {run+1}/5 ===")
+    # =========================
+    # Multi-run Training
+    # =========================
+    for run in range(NUM_RUNS):
+        print(f"\n=== Run {run+1}/{NUM_RUNS} ===")
 
-        model = CNNTransformer().to(device)
+        model = CNNTransformer(num_classes=len(np.unique(y_train))).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         criterion = nn.CrossEntropyLoss()
 
-        best_val = 0
+        best_val = 0.0
         best_state = None
 
-        for epoch in range(20):
+        start_train = time.time()
+
+        for epoch in range(EPOCHS):
             train_one_epoch(model, train_loader, optimizer, criterion, device)
             val_acc = evaluate(model, val_loader, device)
 
@@ -121,20 +154,39 @@ def main():
                 best_val = val_acc
                 best_state = model.state_dict()
 
+        train_time = time.time() - start_train
+        train_times.append(train_time)
+
         model.load_state_dict(best_state)
+
         test_acc = evaluate(model, test_loader, device)
+        infer_t = inference_time(model, test_loader, device)
+
         test_accs.append(test_acc)
+        infer_times.append(infer_t)
 
         print(f"Test Acc: {test_acc:.4f}")
+        print(f"Train Time: {train_time:.2f}s | Inference Time: {infer_t:.4f}s")
+
+    # =========================
+    # Save results
+    # =========================
+    os.makedirs("results", exist_ok=True)
 
     test_accs = np.array(test_accs)
-    os.makedirs("results", exist_ok=True)
+    train_times = np.array(train_times)
+    infer_times = np.array(infer_times)
+
     np.save("results/cnn_transformer_test_accs.npy", test_accs)
+    np.save("results/cnn_transformer_train_times.npy", train_times)
+    np.save("results/cnn_transformer_infer_times.npy", infer_times)
 
     print("\n===== Final Statistics =====")
     print("Test Accuracies:", test_accs)
-    print("Mean:", test_accs.mean())
-    print("Std:", test_accs.std())
+    print(f"Mean Acc: {test_accs.mean():.4f}")
+    print(f"Std Acc : {test_accs.std():.4f}")
+    print(f"Avg Train Time: {train_times.mean():.2f}s")
+    print(f"Avg Inference Time: {infer_times.mean():.4f}s")
 
 
 if __name__ == "__main__":
