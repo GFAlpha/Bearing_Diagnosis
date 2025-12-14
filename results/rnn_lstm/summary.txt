@@ -1,0 +1,5 @@
+RNN (LSTM) Results
+Mean Acc: 0.994299
+Std Acc : 0.001020
+Avg Train Time: 11.1753s
+Avg Inference Time: 0.002135s
