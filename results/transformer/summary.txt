@@ -1,0 +1,6 @@
+===== Transformer Results =====
+Test Accuracies: [0.9099201824401368, 0.8939566704675028, 0.9315849486887116, 0.9543899657924744, 0.942987457240593]
+Mean Acc: 0.9266
+Std Acc : 0.0220
+Avg Train Time: 543.81s
+Avg Inference Time: 0.039544s
