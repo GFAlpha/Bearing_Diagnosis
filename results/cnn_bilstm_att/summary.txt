@@ -1,0 +1,5 @@
+CNN + BiLSTM + Attention Results
+Mean Acc : 0.9875
+Std Acc  : 0.0106
+Avg Train Time (s): 10.42
+Avg Inference Time (s): 0.000029
