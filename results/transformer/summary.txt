@@ -1,6 +1,9 @@
-===== Transformer Results =====
-Test Accuracies: [0.9452679589509693, 0.9087799315849487, 0.9156214367160775, 0.936145952109464, 0.9053591790193842]
-Mean Acc: 0.9222
-Std Acc : 0.0157
-Avg Train Time: 554.56s
-Avg Inference Time: 0.041009s
+Transformer Results
+Test Accs: [0.9258836944127709, 0.9646522234891676, 0.9543899657924744, 0.9327251995438997, 0.9555302166476625]
+Mean Acc: 0.946636
+Std Acc : 0.014751
+Avg Train Time (s): 754.432487
+Avg Inference Time (s/step, per batch): 0.05779058
+Best Run (by Test Acc): Run 2
+Best Run Test Acc: 0.964652
+Best Model Overall: models\transformer\best_model_overall.pth

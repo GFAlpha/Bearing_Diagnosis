@@ -1,0 +1,9 @@
+{
+  "model": "cnn_bilstm",
+  "tag": "snr_9",
+  "device": "cuda",
+  "weight_path": "F:/Bearing_Diagnosis/models/cnn_bilstm/best_model_overall.pth",
+  "acc": 0.9783352337514253,
+  "infer_time_mean_s_per_step": 0.0012702090399605887,
+  "infer_time_std_s_per_step": 0.0004901230888430709
+}

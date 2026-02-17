@@ -1,0 +1,9 @@
+{
+  "model": "transformer",
+  "tag": "snr_6",
+  "device": "cuda",
+  "weight_path": "F:/Bearing_Diagnosis/models/transformer/best_model_overall.pth",
+  "acc": 0.8358038768529077,
+  "infer_time_mean_s_per_step": 0.05479644026075091,
+  "infer_time_std_s_per_step": 0.0038770995021287463
+}

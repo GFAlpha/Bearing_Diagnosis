@@ -1,0 +1,9 @@
+{
+  "model": "rnn_lstm",
+  "tag": "clean",
+  "device": "cuda",
+  "weight_path": "F:/Bearing_Diagnosis/models/rnn_lstm/best_model_overall.pth",
+  "acc": 0.9965792474344356,
+  "infer_time_mean_s_per_step": 0.0023895842688424246,
+  "infer_time_std_s_per_step": 0.004473320903316866
+}

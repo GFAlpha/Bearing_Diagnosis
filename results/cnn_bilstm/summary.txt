@@ -1,0 +1,9 @@
+CNN_BiLSTM Results
+Test Accs: [0.9623717217787914, 0.936145952109464, 0.9646522234891676, 0.928164196123147, 0.9942987457240593]
+Mean Acc: 0.957127
+Std Acc : 0.023430
+Avg Train Time (s): 14.519725
+Avg Inference Time (s/step, per batch): 0.00158177
+Best Run (by Test Acc): Run 5
+Best Run Test Acc: 0.994299
+Best Model Overall: models\cnn_bilstm\best_model_overall.pth

@@ -1,5 +1,9 @@
-RNN (LSTM) Results
-Mean Acc: 0.994299
-Std Acc : 0.001020
-Avg Train Time: 8.2373s
-Avg Inference Time: 0.001593s
+RNNLSTM Results
+Test Accs: [0.9954389965792474, 0.9931584948688712, 0.9942987457240593, 0.9965792474344356, 0.9954389965792474]
+Mean Acc: 0.994983
+Std Acc : 0.001163
+Avg Train Time (s): 13.090553
+Avg Inference Time (s/step, per batch): 0.00111251
+Best Run (by Test Acc): Run 4
+Best Run Test Acc: 0.996579
+Best Model Overall: models\rnn_lstm\best_model_overall.pth

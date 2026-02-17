@@ -1,0 +1,9 @@
+CNN1D Results
+Test Accs: [0.9965792474344356, 1.0, 0.9988597491448119, 0.9988597491448119, 0.9977194982896237]
+Mean Acc: 0.998404
+Std Acc : 0.001163
+Avg Train Time (s): 11.455955
+Avg Inference Time (s/step, per batch): 0.00078648
+Best Run (by Test Acc): Run 2
+Best Run Test Acc: 1.000000
+Best Model Overall: models\cnn\best_model_overall.pth

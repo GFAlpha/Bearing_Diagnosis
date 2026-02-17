@@ -1,5 +1,9 @@
-CNN + Transformer Results
-Mean Acc: 0.9989
-Std Acc : 0.0012
-Avg Train Time: 33.26s
-Avg Infer Time: 0.0710s
+CNN+Transformer Results
+Test Accs: [0.9988597491448119, 1.0, 0.9988597491448119, 1.0, 1.0]
+Mean Acc: 0.999544
+Std Acc : 0.000559
+Avg Train Time (s): 45.676281
+Avg Inference Time (s/step, per batch): 0.00366946
+Best Run (by Test Acc): Run 2
+Best Run Test Acc: 1.000000
+Best Model Overall: models\cnn_transformer\best_model_overall.pth

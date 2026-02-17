@@ -1,5 +1,9 @@
-CNN + BiLSTM + Attention Results
-Mean Acc : 0.9875
-Std Acc  : 0.0106
-Avg Train Time (s): 10.42
-Avg Inference Time (s): 0.000029
+CNN+BiLSTM+Attention Results
+Test Accs: [0.9908779931584949, 0.9897377423033067, 0.9851767388825542, 0.9908779931584949, 0.9965792474344356]
+Mean Acc: 0.990650
+Std Acc : 0.003635
+Avg Train Time (s): 18.553170
+Avg Inference Time (s/step, per batch): 0.00156437
+Best Run (by Test Acc): Run 5
+Best Run Test Acc: 0.996579
+Best Model Overall: models\cnn_bilstm_att\best_model_overall.pth

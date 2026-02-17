@@ -4,10 +4,12 @@
 # v3版本是固定划分数据集，多次训练取平均
 # v4版本是将v3版本稍作修改，实现保存结果供后续画图
 # v5版本是将v4版本稍作修改，实现运行后记录用时等指标
-# v6版本是将v5版本稍作修改，实现只保存第一次run的y_true和y_pred，减少存储空间
+# v6版本是将v5版本稍作修改，实现保存best test run
+
 import os
 import time
 import random
+import shutil
 import numpy as np
 import torch
 import torch.nn as nn
@@ -25,19 +27,21 @@ NUM_CLASSES = 4
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-RESULT_DIR = "results/cnn"
-MODEL_DIR = "models/cnn"
+RESULT_DIR = os.path.join("results", "cnn")
+MODEL_DIR = os.path.join("models", "cnn")
 os.makedirs(RESULT_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # =========================
 # 固定随机种子
 # =========================
-def set_seed(seed):
+def set_seed(seed: int):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 # =========================
 # 数据集
@@ -58,7 +62,7 @@ class BearingDataset(Dataset):
 # CNN 模型
 # =========================
 class CNN1D(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes: int):
         super().__init__()
         self.features = nn.Sequential(
             nn.Conv1d(1, 16, kernel_size=7, padding=3),
@@ -70,6 +74,7 @@ class CNN1D(nn.Module):
             nn.MaxPool1d(2),
         )
 
+        # 输入长度 1024 -> pool2次 -> 256
         self.classifier = nn.Sequential(
             nn.Flatten(),
             nn.Linear(32 * 256, 128),
@@ -84,6 +89,7 @@ class CNN1D(nn.Module):
 
 # =========================
 # 单次训练 + 测试
+# 返回：test_acc/train_time/avg_infer_time + y_true/y_pred + best_model_path/best_val_acc
 # =========================
 def train_and_test(run_id, train_loader, val_loader, test_loader):
     print(f"\n===== Run {run_id + 1}/{NUM_RUNS} =====")
@@ -93,7 +99,7 @@ def train_and_test(run_id, train_loader, val_loader, test_loader):
     criterion = nn.CrossEntropyLoss()
 
     best_val_acc = 0.0
-    best_model_path = f"{MODEL_DIR}/best_model_run{run_id+1}.pth"
+    best_model_path = os.path.join(MODEL_DIR, f"best_model_run{run_id+1}.pth")
 
     # ---------- 训练计时 ----------
     train_start = time.time()
@@ -102,8 +108,9 @@ def train_and_test(run_id, train_loader, val_loader, test_loader):
         model.train()
         for x, y in train_loader:
             x, y = x.to(DEVICE), y.to(DEVICE)
-            optimizer.zero_grad()
-            loss = criterion(model(x), y)
+            optimizer.zero_grad(set_to_none=True)
+            logits = model(x)
+            loss = criterion(logits, y)
             loss.backward()
             optimizer.step()
 
@@ -120,6 +127,7 @@ def train_and_test(run_id, train_loader, val_loader, test_loader):
         val_acc = accuracy_score(val_labels, val_preds)
         print(f"Epoch [{epoch+1:02d}/{EPOCHS}] | Val Acc: {val_acc:.4f}")
 
+        # 保存验证集最优
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), best_model_path)
@@ -127,77 +135,148 @@ def train_and_test(run_id, train_loader, val_loader, test_loader):
     train_time = time.time() - train_start
 
     # ---------- 测试 + 推理计时 ----------
-    model.load_state_dict(torch.load(best_model_path))
+    state = torch.load(best_model_path, map_location=DEVICE)
+    model.load_state_dict(state)
     model.eval()
 
     test_preds, test_labels = [], []
-    infer_start = time.time()
 
+    # 计“每个 batch 的耗时”，最后取均值（单位：秒/step）
+    infer_times = []
     with torch.no_grad():
         for x, y in test_loader:
             x, y = x.to(DEVICE), y.to(DEVICE)
+
+            # 推理计时（前后都 synchronize，避免异步队列残留带来的误差）
+            if DEVICE == "cuda":
+                torch.cuda.synchronize()
+            t0 = time.time()
+
             preds = model(x).argmax(dim=1)
+
+            if DEVICE == "cuda":
+                torch.cuda.synchronize()
+            t1 = time.time()
+
+            infer_times.append(t1 - t0)
             test_preds.extend(preds.cpu().numpy())
             test_labels.extend(y.cpu().numpy())
 
-    infer_time = (time.time() - infer_start) / len(test_loader)
+    avg_infer_time = float(np.mean(infer_times))  # 秒/step（一个 batch）
     test_acc = accuracy_score(test_labels, test_preds)
 
     print(f"Test Acc (Run {run_id+1}): {test_acc:.4f}")
 
-    return test_acc, train_time, infer_time, test_labels, test_preds
+    return (
+        test_acc,
+        train_time,
+        avg_infer_time,
+        np.array(test_labels),
+        np.array(test_preds),
+        best_model_path,
+        best_val_acc,
+    )
 
 # =========================
 # 主函数
 # =========================
 def main():
-    # 加载数据
+    # --------------- 数据路径 ---------------
     X_train = np.load("data/splits/X_train.npy")
     y_train = np.load("data/splits/y_train.npy")
     X_val = np.load("data/splits/X_val.npy")
     y_val = np.load("data/splits/y_val.npy")
     X_test = np.load("data/splits/X_test.npy")
     y_test = np.load("data/splits/y_test.npy")
+    # ------------------------------------------------------------------
 
-    train_loader = DataLoader(BearingDataset(X_train, y_train), BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(BearingDataset(X_val, y_val), BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(BearingDataset(X_test, y_test), BATCH_SIZE, shuffle=False)
+    train_loader = DataLoader(BearingDataset(X_train, y_train), batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
+    val_loader = DataLoader(BearingDataset(X_val, y_val), batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
+    test_loader = DataLoader(BearingDataset(X_test, y_test), batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
     test_accs, train_times, infer_times = [], [], []
+    seeds = []
 
-    y_true_saved, y_pred_saved = None, None
+    # 用“Test Acc 最好的一次 run”来保存 y_true/y_pred & best_overall
+    best_run_idx = -1
+    best_run_test_acc = -1.0
+    best_run_labels = None
+    best_run_preds = None
+    best_run_model_path = None
+    best_run_val_acc = None
 
     for run in range(NUM_RUNS):
-        set_seed(3000 + run)
-        acc, t_time, i_time, y_true, y_pred = train_and_test(
+        seed = 3000 + run
+        seeds.append(seed)
+        set_seed(seed)
+
+        acc, t_time, i_time, labels, preds, best_model_path, best_val_acc = train_and_test(
             run, train_loader, val_loader, test_loader
         )
+
         test_accs.append(acc)
         train_times.append(t_time)
         infer_times.append(i_time)
 
-        # ✅ 只保存第 1 次 run 的 y_true / y_pred（用于混淆矩阵）
-        if run == 0:
-            y_true_saved = np.array(y_true)
-            y_pred_saved = np.array(y_pred)
+        if acc > best_run_test_acc:
+            best_run_test_acc = acc
+            best_run_idx = run
+            best_run_labels = labels
+            best_run_preds = preds
+            best_run_model_path = best_model_path
+            best_run_val_acc = best_val_acc
 
-    test_accs = np.array(test_accs)
-    train_times = np.array(train_times)
-    infer_times = np.array(infer_times)
+    test_accs = np.array(test_accs, dtype=np.float64)
+    train_times = np.array(train_times, dtype=np.float64)
+    infer_times = np.array(infer_times, dtype=np.float64)
+
+    # 额外保存一个“全局最优模型”（按 Test Acc 最好的一次 run）
+    best_overall_path = os.path.join(MODEL_DIR, "best_model_overall.pth")
+    if best_run_model_path is not None:
+        shutil.copyfile(best_run_model_path, best_overall_path)
 
     print("\n===== Final Statistics =====")
     print("Test Accuracies:", test_accs)
     print(f"Mean Acc: {test_accs.mean():.4f}")
     print(f"Std Acc : {test_accs.std():.4f}")
     print(f"Avg Train Time: {train_times.mean():.2f}s")
-    print(f"Avg Inference Time: {infer_times.mean():.4f}s")
+    print(f"Avg Inference Time: {infer_times.mean():.6f}s/step (per batch)")
 
-    # ---------- 保存 ----------
-    np.save(f"{RESULT_DIR}/test_accs.npy", test_accs)
-    np.save(f"{RESULT_DIR}/train_times.npy", train_times)
-    np.save(f"{RESULT_DIR}/infer_times.npy", infer_times)
-    np.save(f"{RESULT_DIR}/y_true.npy", y_true_saved)
-    np.save(f"{RESULT_DIR}/y_pred.npy", y_pred_saved)
+    # ---------- 保存（统一为 npy） ----------
+    np.save(os.path.join(RESULT_DIR, "test_accs.npy"), test_accs)
+    np.save(os.path.join(RESULT_DIR, "train_times.npy"), train_times)
+    np.save(os.path.join(RESULT_DIR, "infer_times.npy"), infer_times)
+
+    # y_true / y_pred 保存“最好的一次 run”
+    np.save(os.path.join(RESULT_DIR, "y_true.npy"), best_run_labels)
+    np.save(os.path.join(RESULT_DIR, "y_pred.npy"), best_run_preds)
+
+    meta = {
+        "model_name": "CNN1D",
+        "num_runs": NUM_RUNS,
+        "epochs": EPOCHS,
+        "batch_size": BATCH_SIZE,
+        "lr": LR,
+        "num_classes": NUM_CLASSES,
+        "device": DEVICE,
+        "seeds": seeds,
+        "best_run_idx_by_test_acc": int(best_run_idx + 1),  # 1-based
+        "best_run_test_acc": float(best_run_test_acc),
+        "best_run_val_acc": float(best_run_val_acc) if best_run_val_acc is not None else None,
+        "best_model_overall_path": best_overall_path.replace("\\", "/"),
+    }
+    np.save(os.path.join(RESULT_DIR, "meta.npy"), meta, allow_pickle=True)
+
+    with open(os.path.join(RESULT_DIR, "summary.txt"), "w", encoding="utf-8") as f:
+        f.write("CNN1D Results\n")
+        f.write(f"Test Accs: {test_accs.tolist()}\n")
+        f.write(f"Mean Acc: {test_accs.mean():.6f}\n")
+        f.write(f"Std Acc : {test_accs.std():.6f}\n")
+        f.write(f"Avg Train Time (s): {train_times.mean():.6f}\n")
+        f.write(f"Avg Inference Time (s/step, per batch): {infer_times.mean():.8f}\n")
+        f.write(f"Best Run (by Test Acc): Run {best_run_idx+1}\n")
+        f.write(f"Best Run Test Acc: {best_run_test_acc:.6f}\n")
+        f.write(f"Best Model Overall: {best_overall_path}\n")
 
 if __name__ == "__main__":
     main()
