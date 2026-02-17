@@ -4,6 +4,6 @@
   "device": "cuda",
   "weight_path": "F:/Bearing_Diagnosis/models/cnn_bilstm_att/best_model_overall.pth",
   "acc": 0.5507411630558723,
-  "infer_time_mean_s_per_step": 0.0008477483476911272,
-  "infer_time_std_s_per_step": 0.00034154774699040767
+  "infer_time_mean_s_per_step": 0.000901477677481515,
+  "infer_time_std_s_per_step": 0.0003498280810413011
 }

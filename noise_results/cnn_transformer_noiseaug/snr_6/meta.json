@@ -4,6 +4,6 @@
   "device": "cuda",
   "weight_path": "F:/Bearing_Diagnosis/models/cnn_transformer_noiseaug/best_model_overall.pth",
   "acc": 0.9977194982896237,
-  "infer_time_mean_s_per_step": 0.003666520118713379,
-  "infer_time_std_s_per_step": 0.0008378551030075759
+  "infer_time_mean_s_per_step": 0.0034332615988595144,
+  "infer_time_std_s_per_step": 0.0008721086061881513
 }
