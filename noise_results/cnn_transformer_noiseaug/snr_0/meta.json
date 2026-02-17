@@ -1,0 +1,9 @@
+{
+  "model": "cnn_transformer_noiseaug",
+  "tag": "snr_0",
+  "device": "cuda",
+  "weight_path": "F:/Bearing_Diagnosis/models/cnn_transformer_noiseaug/best_model_overall.pth",
+  "acc": 0.8768529076396807,
+  "infer_time_mean_s_per_step": 0.00352999142238072,
+  "infer_time_std_s_per_step": 0.0008901701348714662
+}

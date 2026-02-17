@@ -61,6 +61,11 @@ MODEL_ZOO = {
         "builder": lambda: CNNTransformer(num_classes=4),
         "input_adapter": "cnn_1d",      # [B, 1, L]
     },
+    "cnn_transformer_noiseaug": {
+        "model_dir": os.path.join(PROJECT_ROOT, "models", "cnn_transformer_noiseaug"),
+        "builder": lambda: CNNTransformer(num_classes=4),
+        "input_adapter": "cnn_1d",
+    },
 }
 
 def make_loader(X: np.ndarray, y: np.ndarray, adapter: str, batch_size: int = 64):

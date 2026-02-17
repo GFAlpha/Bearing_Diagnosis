@@ -11,11 +11,12 @@ OUTPUT_DIR = "analysis_results"
 
 MODEL_ORDER = [
     ("cnn", "CNN"),
-    ("rnn_lstm", "RNN"),
+    ("rnn_lstm", "LSTM"),
     ("cnn_bilstm", "CNN+BiLSTM"),
     ("cnn_bilstm_att", "CNN+BiLSTM+Att"),
     ("transformer", "Transformer"),
     ("cnn_transformer", "CNN+Transformer"),
+    ("cnn_transformer_noiseaug", "CNN+Transformer(NoiseAug)"),
 ]
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -63,7 +64,7 @@ df = pd.DataFrame(records)
 # ============ ④ 保存 CSV ================================
 # =========================================================
 csv_path = os.path.join(OUTPUT_DIR, "summary.csv")
-df.to_csv(csv_path, index=False)
+df.to_csv(csv_path, index=False, encoding="utf-8-sig")
 
 # =========================================================
 # ============ ⑤ 保存「文本表格」（给人看的） ============
@@ -72,12 +73,12 @@ txt_path = os.path.join(OUTPUT_DIR, "summary.txt")
 with open(txt_path, "w", encoding="utf-8") as f:
     f.write("Model Performance Summary\n")
     f.write("=" * 70 + "\n")
-    f.write(f"{'Model':<20}{'Acc Mean':>10}{'Acc Std':>10}"
+    f.write(f"{'Model':<28}{'Acc Mean':>10}{'Acc Std':>10}"
             f"{'Train(s)':>12}{'Infer(ms)':>12}\n")
     f.write("-" * 70 + "\n")
 
     for _, row in df.iterrows():
-        f.write(f"{row['Model']:<20}"
+        f.write(f"{row['Model']:<28}"
                 f"{row['Acc Mean']:>10.4f}"
                 f"{row['Acc Std']:>10.4f}"
                 f"{row['Train Time (s)']:>12.2f}"
@@ -92,10 +93,11 @@ plt.figure(figsize=(10, 5))
 plt.bar(df["Model"], df["Acc Mean"], yerr=df["Acc Std"], capsize=5)
 plt.ylabel("Test Accuracy")
 plt.title("Accuracy Comparison of Models")
-plt.ylim(0.9, 1.01)
+plt.ylim(0.0, 1.01)  # ✅ 兼容更低的结果（避免以后增强实验/其他实验低于0.9时图被截断）
 plt.grid(axis="y", linestyle="--", alpha=0.6)
+plt.xticks(rotation=15, ha="right")
 plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, "accuracy_comparison.png"))
+plt.savefig(os.path.join(OUTPUT_DIR, "accuracy_comparison.png"), dpi=300)
 plt.close()
 
 # =========================================================
@@ -107,8 +109,9 @@ plt.yscale("log")
 plt.ylabel("Training Time (s, log scale)")
 plt.title("Training Time Comparison (Log Scale)")
 plt.grid(axis="y", linestyle="--", alpha=0.6, which="both")
+plt.xticks(rotation=15, ha="right")
 plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, "train_time_comparison_log.png"))
+plt.savefig(os.path.join(OUTPUT_DIR, "train_time_comparison_log.png"), dpi=300)
 plt.close()
 
 # =========================================================
@@ -120,8 +123,9 @@ plt.yscale("log")
 plt.ylabel("Inference Time (ms, log scale)")
 plt.title("Inference Time Comparison (Log Scale)")
 plt.grid(axis="y", linestyle="--", alpha=0.6, which="both")
+plt.xticks(rotation=15, ha="right")
 plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, "infer_time_comparison_log.png"))
+plt.savefig(os.path.join(OUTPUT_DIR, "infer_time_comparison_log.png"), dpi=300)
 plt.close()
 
 print(f"[DONE] All analysis results saved to {OUTPUT_DIR}")

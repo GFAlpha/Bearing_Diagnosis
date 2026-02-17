@@ -1,0 +1,14 @@
+CNN+Transformer (NoiseAug) Results
+Test Accs: [0.9988597491448119, 0.9988597491448119, 0.9988597491448119, 0.9988597491448119, 0.9988597491448119]
+Mean Acc: 0.998860
+Std Acc : 0.000000
+Avg Train Time (s): 46.721273
+Avg Inference Time (s/step, per batch): 0.00371510
+Best Run (by Test Acc): Run 1
+Best Run Test Acc: 0.998860
+Best Model Overall: models\cnn_transformer_noiseaug\best_model_overall.pth
+
+[NoiseAug Settings]
+AUG_PROB=0.5
+AUG_SNR_CHOICES=[9, 6, 3, 0]
+AUG_SNR_WEIGHTS=[0.5, 0.4, 0.09, 0.01]

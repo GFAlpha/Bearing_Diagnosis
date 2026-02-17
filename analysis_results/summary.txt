@@ -1,10 +1,11 @@
 Model Performance Summary
 ======================================================================
-Model                 Acc Mean   Acc Std    Train(s)   Infer(ms)
+Model                         Acc Mean   Acc Std    Train(s)   Infer(ms)
 ----------------------------------------------------------------------
-CNN                     0.9984    0.0012       11.46       0.786
-RNN                     0.9950    0.0012       13.09       1.113
-CNN+BiLSTM              0.9571    0.0234       14.52       1.582
-CNN+BiLSTM+Att          0.9906    0.0036       18.55       1.564
-Transformer             0.9466    0.0148      754.43      57.791
-CNN+Transformer         0.9995    0.0006       45.68       3.669
+CNN                             0.9984    0.0012       11.46       0.786
+LSTM                            0.9950    0.0012       13.09       1.113
+CNN+BiLSTM                      0.9571    0.0234       14.52       1.582
+CNN+BiLSTM+Att                  0.9906    0.0036       18.55       1.564
+Transformer                     0.9466    0.0148      754.43      57.791
+CNN+Transformer                 0.9995    0.0006       45.68       3.669
+CNN+Transformer(NoiseAug)       0.9989    0.0000       46.72       3.715

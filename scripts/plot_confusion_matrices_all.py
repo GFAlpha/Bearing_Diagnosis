@@ -5,7 +5,7 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
 # ============================
-# 配置区（后续只需要改这里）
+# 配置区
 # ============================
 RESULTS_ROOT = "results"
 SAVE_DIR = "analysis_results/confusion_matrices"
@@ -13,18 +13,15 @@ CLASS_NAMES = ["Normal", "Ball", "Inner", "Outer"]
 
 MODEL_DIRS = {
     "CNN": "cnn",
-    "RNN": "rnn_lstm",
+    "LSTM": "rnn_lstm",
     "CNN+BiLSTM": "cnn_bilstm",
     "CNN+BiLSTM+Att": "cnn_bilstm_att",
     "Transformer": "transformer",
     "CNN+Transformer": "cnn_transformer",
+    "CNN+Transformer(NoiseAug)": "cnn_transformer_noiseaug",
 }
 
 os.makedirs(SAVE_DIR, exist_ok=True)
-
-# ============================
-# 绘图函数
-# ============================
 
 def plot_cm(y_true, y_pred, title, save_path):
     cm = confusion_matrix(y_true, y_pred)
@@ -46,11 +43,9 @@ def plot_cm(y_true, y_pred, title, save_path):
     plt.savefig(save_path, dpi=300)
     plt.close()
 
-
 # ============================
 # 主流程
 # ============================
-
 for model_name, folder in MODEL_DIRS.items():
     model_path = os.path.join(RESULTS_ROOT, folder)
     y_true_path = os.path.join(model_path, "y_true.npy")
