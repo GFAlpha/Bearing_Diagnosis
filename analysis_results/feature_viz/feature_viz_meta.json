@@ -1,0 +1,46 @@
+[
+  {
+    "model_key": "cnn_transformer",
+    "model_name": "CNN+Transformer",
+    "tag": "clean",
+    "weight_path": "F:/Bearing_Diagnosis/models/cnn_transformer/best_model_overall.pth",
+    "n_points": 877,
+    "feature_dim": 64,
+    "saved_npz": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_clean_features.npz",
+    "pca_png": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_clean_pca.png",
+    "tsne_png": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_clean_tsne.png"
+  },
+  {
+    "model_key": "cnn_transformer",
+    "model_name": "CNN+Transformer",
+    "tag": "snr_0",
+    "weight_path": "F:/Bearing_Diagnosis/models/cnn_transformer/best_model_overall.pth",
+    "n_points": 877,
+    "feature_dim": 64,
+    "saved_npz": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_snr_0_features.npz",
+    "pca_png": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_snr_0_pca.png",
+    "tsne_png": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_snr_0_tsne.png"
+  },
+  {
+    "model_key": "cnn_transformer_noiseaug",
+    "model_name": "CNN+Transformer(NoiseAug)",
+    "tag": "clean",
+    "weight_path": "F:/Bearing_Diagnosis/models/cnn_transformer_noiseaug/best_model_overall.pth",
+    "n_points": 877,
+    "feature_dim": 64,
+    "saved_npz": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_noiseaug_clean_features.npz",
+    "pca_png": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_noiseaug_clean_pca.png",
+    "tsne_png": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_noiseaug_clean_tsne.png"
+  },
+  {
+    "model_key": "cnn_transformer_noiseaug",
+    "model_name": "CNN+Transformer(NoiseAug)",
+    "tag": "snr_0",
+    "weight_path": "F:/Bearing_Diagnosis/models/cnn_transformer_noiseaug/best_model_overall.pth",
+    "n_points": 877,
+    "feature_dim": 64,
+    "saved_npz": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_noiseaug_snr_0_features.npz",
+    "pca_png": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_noiseaug_snr_0_pca.png",
+    "tsne_png": "F:/Bearing_Diagnosis/analysis_results/feature_viz/cnn_transformer_noiseaug_snr_0_tsne.png"
+  }
+]
